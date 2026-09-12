@@ -1,6 +1,478 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import { Copy, Download, Plus, Redo2, Search, Undo2, Upload, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AddDepModal, type NewDepFields } from './components/AddDepModal';
+import { BatchBar } from './components/BatchBar';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { DepTable } from './components/DepTable';
+import { DetailPanel, type DepPatch } from './components/DetailPanel';
+import { ImportModal } from './components/ImportModal';
+import { Sidebar, type View } from './components/Sidebar';
+import { ToastHost, type ToastMsg } from './components/Toast';
+import { buildMarkdown, downloadFile, type EvaluatedDep } from './lib/exporter';
+import { evaluateLicense } from './lib/risk';
+import { sampleDeps } from './lib/sample';
+import { loadState, saveState } from './lib/storage';
+import type { Dep, ReviewStatus, RiskLevel, Settings, Workspace } from './lib/types';
+import { DEFAULT_SETTINGS, newId, REVIEW_LABEL } from './lib/types';
+import { useHistory } from './hooks/useHistory';
+
+type SortMode = 'risk' | 'name' | 'recent';
+
+const RISK_ORDER: Record<RiskLevel, number> = { high: 0, medium: 1, low: 2 };
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* 继续尝试回退方案 */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export default function App() {
+  // 启动：优先读取本地持久化数据，首次运行载入示例数据
+  const [boot] = useState(() => {
+    const stored = loadState();
+    return stored
+      ? { ws: stored, seeded: false }
+      : { ws: { deps: sampleDeps(), settings: DEFAULT_SETTINGS }, seeded: true };
+  });
+  const { present, commit, undo, redo, canUndo, canRedo } = useHistory<Workspace>(boot.ws);
+
+  const [query, setQuery] = useState('');
+  const [riskFilter, setRiskFilter] = useState<'all' | RiskLevel>('all');
+  const [reviewFilter, setReviewFilter] = useState<'all' | ReviewStatus>('all');
+  const [sort, setSort] = useState<SortMode>('risk');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [confirm, setConfirm] = useState<{ title: string; body: string; confirmLabel: string; action: () => void } | null>(null);
+  const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const toastSeq = useRef(0);
+
+  const pushToast = useCallback((text: string, kind: ToastMsg['kind'] = 'ok') => {
+    const id = ++toastSeq.current;
+    setToasts((ts) => [...ts, { id, text, kind }]);
+    window.setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), 2600);
+  }, []);
+
+  // 持久化：任何状态变化后自动保存
+  useEffect(() => {
+    saveState(present);
+    setSavedAt(new Date());
+  }, [present]);
+
+  // 撤销/重做快捷键（输入框内不劫持浏览器默认行为）
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [undo, redo]);
+
+  // 依赖删除/撤销后，清理失效的选择与详情
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const ids = new Set(present.deps.map((d) => d.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    if (activeId && !present.deps.some((d) => d.id === activeId)) setActiveId(null);
+  }, [present.deps, activeId]);
+
+  const evaluated: EvaluatedDep[] = useMemo(
+    () => present.deps.map((dep) => ({ dep, eval: evaluateLicense(dep.license, present.settings) })),
+    [present],
+  );
+
+  const stats = useMemo(
+    () => ({
+      total: evaluated.length,
+      high: evaluated.filter((i) => i.eval.level === 'high').length,
+      medium: evaluated.filter((i) => i.eval.level === 'medium').length,
+      low: evaluated.filter((i) => i.eval.level === 'low').length,
+      pending: evaluated.filter((i) => i.dep.review === 'pending').length,
+    }),
+    [evaluated],
+  );
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = evaluated.filter(({ dep, eval: ev }) => {
+      if (riskFilter !== 'all' && ev.level !== riskFilter) return false;
+      if (reviewFilter !== 'all' && dep.review !== reviewFilter) return false;
+      if (q && !`${dep.name} ${dep.license} ${dep.owner}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      if (sort === 'name') return a.dep.name.localeCompare(b.dep.name);
+      if (sort === 'recent') return b.dep.addedAt - a.dep.addedAt;
+      return RISK_ORDER[a.eval.level] - RISK_ORDER[b.eval.level] || a.dep.name.localeCompare(b.dep.name);
+    });
+  }, [evaluated, query, riskFilter, reviewFilter, sort]);
+
+  const active = activeId ? (evaluated.find((i) => i.dep.id === activeId) ?? null) : null;
+  const existingNames = useMemo(() => new Set(present.deps.map((d) => d.name.toLowerCase())), [present.deps]);
+
+  const activeView: View | null =
+    riskFilter === 'all' && reviewFilter === 'all'
+      ? 'all'
+      : riskFilter === 'high' && reviewFilter === 'all'
+        ? 'high'
+        : riskFilter === 'all' && reviewFilter === 'pending'
+          ? 'pending'
+          : null;
+
+  const nav = (view: View) => {
+    setRiskFilter(view === 'high' ? 'high' : 'all');
+    setReviewFilter(view === 'pending' ? 'pending' : 'all');
+  };
+  const clearFilters = () => {
+    setQuery('');
+    setRiskFilter('all');
+    setReviewFilter('all');
+  };
+
+  // —— 数据操作（全部进入撤销历史） ——
+  const addDep = (f: NewDepFields) => {
+    const dep: Dep = {
+      id: newId(),
+      ...f,
+      source: '手动录入',
+      review: 'pending',
+      owner: '',
+      alternative: '',
+      note: '',
+      addedAt: Date.now(),
+    };
+    commit((ws) => ({ ...ws, deps: [...ws.deps, dep] }));
+    setShowAdd(false);
+    setActiveId(dep.id);
+    pushToast(`已添加 ${dep.name}，状态为待处理`);
+  };
+
+  const saveDep = (id: string, patch: DepPatch) => {
+    commit((ws) => ({ ...ws, deps: ws.deps.map((d) => (d.id === id ? { ...d, ...patch } : d)) }));
+    pushToast('已保存更改');
+  };
+
+  const deleteDep = (id: string) => {
+    const dep = present.deps.find((d) => d.id === id);
+    setConfirm({
+      title: '删除依赖',
+      body: `确定删除 ${dep?.name ?? '该依赖'} 吗？删除后可通过撤销（Ctrl+Z）恢复。`,
+      confirmLabel: '删除',
+      action: () => {
+        commit((ws) => ({ ...ws, deps: ws.deps.filter((d) => d.id !== id) }));
+        pushToast(`已删除 ${dep?.name ?? '依赖'}`, 'info');
+      },
+    });
+  };
+
+  const importDeps = (rows: NewDepFields[]) => {
+    const now = Date.now();
+    const deps: Dep[] = rows.map((r, i) => ({
+      id: newId(),
+      ...r,
+      source: '批量导入',
+      review: 'pending',
+      owner: '',
+      alternative: '',
+      note: '',
+      addedAt: now + i,
+    }));
+    commit((ws) => ({ ...ws, deps: [...ws.deps, ...deps] }));
+    setShowImport(false);
+    pushToast(`已导入 ${deps.length} 条依赖，状态为待处理`);
+  };
+
+  const batchSetReview = (status: ReviewStatus) => {
+    const ids = selectedIds;
+    commit((ws) => ({ ...ws, deps: ws.deps.map((d) => (ids.has(d.id) ? { ...d, review: status } : d)) }));
+    pushToast(`已将 ${ids.size} 项标记为「${REVIEW_LABEL[status]}」`);
+  };
+
+  const batchAssignOwner = (owner: string) => {
+    const ids = selectedIds;
+    commit((ws) => ({ ...ws, deps: ws.deps.map((d) => (ids.has(d.id) ? { ...d, owner } : d)) }));
+    pushToast(`已为 ${ids.size} 项指派负责人 ${owner}`);
+  };
+
+  const batchDelete = () => {
+    const ids = selectedIds;
+    setConfirm({
+      title: '批量删除',
+      body: `确定删除选中的 ${ids.size} 条依赖吗？删除后可通过撤销（Ctrl+Z）恢复。`,
+      confirmLabel: `删除 ${ids.size} 项`,
+      action: () => {
+        commit((ws) => ({ ...ws, deps: ws.deps.filter((d) => !ids.has(d.id)) }));
+        setSelectedIds(new Set());
+        pushToast(`已删除 ${ids.size} 条依赖`, 'info');
+      },
+    });
+  };
+
+  const clearAll = () => {
+    setConfirm({
+      title: '清空全部数据',
+      body: `将删除全部 ${present.deps.length} 条依赖记录与审查进度（可通过撤销恢复）。`,
+      confirmLabel: '全部清空',
+      action: () => {
+        commit((ws) => ({ ...ws, deps: [] }));
+        setBannerDismissed(true);
+        pushToast('已清空全部数据', 'info');
+      },
+    });
+  };
+
+  const changeSettings = (settings: Settings) => commit((ws) => ({ ...ws, settings }));
+
+  // —— 导出 ——
+  const doExport = () => {
+    const now = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const md = buildMarkdown(evaluated, present.settings, now);
+    downloadFile(`license-review-${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}.md`, md, 'text/markdown');
+    pushToast('交接摘要已导出为 Markdown');
+  };
+
+  const doCopy = async () => {
+    const ok = await copyText(buildMarkdown(evaluated, present.settings, new Date()));
+    pushToast(ok ? '摘要已复制到剪贴板' : '复制失败，请使用导出按钮', ok ? 'ok' : 'warn');
+  };
+
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleAll = () => {
+    const visible = filtered.map((r) => r.dep.id);
+    const allIn = visible.length > 0 && visible.every((id) => selectedIds.has(id));
+    setSelectedIds(allIn ? new Set() : new Set(visible));
+  };
+
+  const showBanner = boot.seeded && !bannerDismissed && present.deps.length > 0;
+
+  return (
+    <div className="shell">
+      <Sidebar
+        activeView={activeView}
+        counts={{ total: stats.total, pending: stats.pending, high: stats.high }}
+        settings={present.settings}
+        savedAt={savedAt}
+        onNav={nav}
+        onSettings={changeSettings}
+        onClearAll={clearAll}
+      />
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">
+              LICENSE LENS / <b>发布前审查</b>
+            </div>
+            <h1>许可证风险审查</h1>
+            <p>按分发方式与规则严格度评估依赖风险，处理待办项后导出交接摘要。</p>
+          </div>
+          <div className="head-actions">
+            <div className="undo-group">
+              <button className="outline icon" onClick={undo} disabled={!canUndo} title="撤销 (Ctrl+Z)">
+                <Undo2 size={15} />
+              </button>
+              <button className="outline icon" onClick={redo} disabled={!canRedo} title="重做 (Ctrl+Shift+Z)">
+                <Redo2 size={15} />
+              </button>
+            </div>
+            <button className="outline" onClick={() => setShowImport(true)}>
+              <Upload size={15} />
+              批量导入
+            </button>
+            <button className="outline" onClick={doExport}>
+              <Download size={15} />
+              导出摘要
+            </button>
+            <button className="outline icon" onClick={doCopy} title="复制摘要到剪贴板">
+              <Copy size={15} />
+            </button>
+            <button className="primary" onClick={() => setShowAdd(true)}>
+              <Plus size={16} />
+              添加依赖
+            </button>
+          </div>
+        </header>
+
+        {showBanner && (
+          <div className="banner">
+            <span>当前为示例数据，可直接体验各项功能；清空后即可录入真实依赖。</span>
+            <button className="link" onClick={clearAll}>
+              清空示例数据
+            </button>
+            <button className="banner-x" onClick={() => setBannerDismissed(true)} aria-label="关闭提示">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        <section className="summary">
+          <button className={activeView === 'all' ? 'stat on' : 'stat'} onClick={() => nav('all')}>
+            <span>全部依赖</span>
+            <b>{stats.total}</b>
+            <small>已评估 {stats.total} 条</small>
+          </button>
+          <button className={riskFilter === 'high' ? 'stat on' : 'stat'} onClick={() => nav('high')}>
+            <span>高风险</span>
+            <b className="red">{stats.high}</b>
+            <small>需替换或豁免</small>
+          </button>
+          <button
+            className={riskFilter === 'medium' ? 'stat on' : 'stat'}
+            onClick={() => {
+              setRiskFilter('medium');
+              setReviewFilter('all');
+            }}
+          >
+            <span>需复核</span>
+            <b className="orange">{stats.medium}</b>
+            <small>存在许可义务</small>
+          </button>
+          <button
+            className={reviewFilter === 'pending' && riskFilter === 'all' ? 'stat on' : 'stat'}
+            onClick={() => nav('pending')}
+          >
+            <span>待处理</span>
+            <b className="teal">{stats.pending}</b>
+            <small>等待审查结论</small>
+          </button>
+        </section>
+
+        <section className={active ? 'workspace' : 'workspace solo'}>
+          <div className="table-pane">
+            <div className="pane-head">
+              <div>
+                <h2>依赖清单</h2>
+                <p>
+                  {filtered.length} / {stats.total} 条
+                </p>
+              </div>
+              <div className="tools">
+                <div className="search">
+                  <Search size={14} />
+                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索名称 / 许可证 / 负责人" />
+                </div>
+                <select value={riskFilter} onChange={(e) => setRiskFilter(e.target.value as 'all' | RiskLevel)} aria-label="按风险筛选">
+                  <option value="all">全部风险</option>
+                  <option value="high">高风险</option>
+                  <option value="medium">需复核</option>
+                  <option value="low">低风险</option>
+                </select>
+                <select
+                  value={reviewFilter}
+                  onChange={(e) => setReviewFilter(e.target.value as 'all' | ReviewStatus)}
+                  aria-label="按审查状态筛选"
+                >
+                  <option value="all">全部状态</option>
+                  {Object.entries(REVIEW_LABEL).map(([v, label]) => (
+                    <option key={v} value={v}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <select value={sort} onChange={(e) => setSort(e.target.value as SortMode)} aria-label="排序方式">
+                  <option value="risk">风险优先</option>
+                  <option value="name">名称 A→Z</option>
+                  <option value="recent">最近添加</option>
+                </select>
+              </div>
+            </div>
+
+            {selectedIds.size > 0 && (
+              <BatchBar
+                count={selectedIds.size}
+                onSetReview={batchSetReview}
+                onAssignOwner={batchAssignOwner}
+                onDelete={batchDelete}
+                onClear={() => setSelectedIds(new Set())}
+              />
+            )}
+
+            <DepTable
+              rows={filtered}
+              totalCount={stats.total}
+              selectedIds={selectedIds}
+              activeId={activeId}
+              onToggle={toggleOne}
+              onToggleAll={toggleAll}
+              onOpen={(id) => setActiveId(id)}
+              onClearFilters={clearFilters}
+              onAdd={() => setShowAdd(true)}
+              onImport={() => setShowImport(true)}
+            />
+          </div>
+
+          {active && (
+            <DetailPanel
+              key={active.dep.id}
+              item={active}
+              settings={present.settings}
+              onSave={saveDep}
+              onDelete={deleteDep}
+              onClose={() => setActiveId(null)}
+            />
+          )}
+        </section>
+      </main>
+
+      {showAdd && (
+        <AddDepModal settings={present.settings} existingNames={existingNames} onAdd={addDep} onClose={() => setShowAdd(false)} />
+      )}
+      {showImport && <ImportModal existingNames={existingNames} onImport={importDeps} onClose={() => setShowImport(false)} />}
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          body={confirm.body}
+          confirmLabel={confirm.confirmLabel}
+          onConfirm={() => {
+            confirm.action();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+      <ToastHost toasts={toasts} />
+    </div>
+  );
+}
