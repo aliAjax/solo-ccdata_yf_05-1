@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:logic": "rolldown tests/logic.test.ts --format cjs --platform node --external node:test,node:assert --file node_modules/.tmp/logic.test.cjs && node --test node_modules/.tmp/logic.test.cjs",
+    "test:logic": "node -e \"require('node:fs').mkdirSync('tests/.out',{recursive:true})\" && rolldown tests/logic.test.ts --format cjs --platform node --external node:test,node:assert --file tests/.out/logic.test.cjs && node --test tests/.out/logic.test.cjs",
     "test:e2e": "node tests/e2e.mjs"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "@types/node": "^22.20.2",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "playwright": "^1.63.0"
+    "playwright": "^1.63.0",
+    "rolldown": "^1.2.8"
   }
 }

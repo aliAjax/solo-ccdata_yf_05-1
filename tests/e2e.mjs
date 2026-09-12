@@ -1,7 +1,55 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const base = 'http://localhost:5199';
+const PORT = 5199;
+const rootDir = fileURLToPath(new URL('..', import.meta.url));
+
+// —— 测试服务器自管理：端口已有服务则复用，否则自动启动并在结束时关闭 ——
+// 注意：vite 在本机可能只绑定 IPv6(::1)，因此复用探测同时尝试两个地址，
+// 自行启动时则显式 --host 127.0.0.1 固定地址。
+async function serverUp(url) {
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(1500) });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+let base = null;
+for (const url of [`http://127.0.0.1:${PORT}`, `http://[::1]:${PORT}`]) {
+  if (await serverUp(url)) {
+    base = url;
+    break;
+  }
+}
+
+let serverProc = null;
+if (!base) {
+  base = `http://127.0.0.1:${PORT}`;
+  const viteBin = `${rootDir}/node_modules/vite/bin/vite.js`;
+  // 有构建产物则用 preview 验证产物，否则回退到 dev server
+  const args = fs.existsSync(`${rootDir}/dist/index.html`)
+    ? [viteBin, 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1']
+    : [viteBin, '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'];
+  serverProc = spawn(process.execPath, args, { cwd: rootDir, stdio: 'ignore' });
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline && !(await serverUp(base))) {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!(await serverUp(base))) {
+    console.error(`无法启动本地测试服务器（端口 ${PORT}）`);
+    serverProc.kill();
+    process.exit(1);
+  }
+}
+const stopServer = () => {
+  if (serverProc && !serverProc.killed) serverProc.kill();
+};
+process.on('exit', stopServer);
+
 let passed = 0;
 let failed = 0;
 const ok = (name, cond) => {
@@ -191,5 +239,6 @@ await page.waitForTimeout(200);
 ok('撤销清空后数据恢复 10 行', (await page.$$('.table .tr:not(.th)')).length === 10);
 
 await browser.close();
+stopServer();
 console.log(`\n结果：${passed} 通过，${failed} 失败`);
 process.exit(failed > 0 ? 1 : 0);
