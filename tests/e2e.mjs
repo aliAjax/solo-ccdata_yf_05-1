@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const PORT = 5199;
@@ -62,7 +62,33 @@ const ok = (name, cond) => {
   }
 };
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+// —— 运行时准备：缺少浏览器时自动安装 Playwright Chromium，再继续检查 ——
+function launchArgs() {
+  return { args: ['--no-sandbox'] };
+}
+async function launchBrowser() {
+  try {
+    return await chromium.launch(launchArgs());
+  } catch (e) {
+    const msg = String(e?.message ?? e);
+    if (!/Executable doesn't exist|browser has not been found|download new browsers/i.test(msg)) throw e;
+    console.log('未检测到 Playwright 浏览器，自动安装 Chromium（仅首次需要）…');
+    const cli = `${rootDir}/node_modules/playwright/cli.js`;
+    const r = spawnSync(process.execPath, [cli, 'install', 'chromium'], { stdio: 'inherit' });
+    if (r.status !== 0) {
+      console.error('浏览器自动安装失败，请手动执行：npx playwright install chromium');
+      process.exit(1);
+    }
+    try {
+      return await chromium.launch(launchArgs());
+    } catch (e2) {
+      console.error('浏览器已安装但启动失败；若是缺少系统依赖，请执行：npx playwright install --with-deps chromium');
+      throw e2;
+    }
+  }
+}
+
+const browser = await launchBrowser();
 const page = await browser.newPage();
 page.on('pageerror', (e) => {
   failed++;
