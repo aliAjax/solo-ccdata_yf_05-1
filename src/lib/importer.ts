@@ -1,5 +1,5 @@
 import { parseSpdx } from './spdx';
-import { normalizeVersion, validateName, validateVersion } from './validate';
+import { normalizeVersion, validateName, validateNameUnique, validateVersion } from './validate';
 
 export interface ImportRow {
   name: string;
@@ -193,9 +193,10 @@ export function parseImport(text: string, existingNames: Set<string>): ImportRes
     const key = name.toLowerCase();
     let duplicate = false;
     if (name && !nameErr) {
-      if (existingNames.has(key)) {
+      const uniqueErr = validateNameUnique(name, existingNames);
+      if (uniqueErr) {
         duplicate = true;
-        warnings.push('与现有依赖重名，导入时将跳过');
+        warnings.push(`${uniqueErr}，导入时将跳过`);
       } else if (seen.has(key)) {
         duplicate = true;
         warnings.push('文件内重复，导入时将跳过');

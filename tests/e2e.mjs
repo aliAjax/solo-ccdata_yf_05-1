@@ -33,7 +33,7 @@ ok('示例数据 banner 可见', (await page.$('.banner')) !== null);
 const rowCount = await page.$$eval('.table .tr:not(.th)', (r) => r.length);
 ok('表格渲染 7 行', rowCount === 7);
 const firstRow = await page.$eval('.table .tr:not(.th) .dep-name', (e) => e.textContent);
-ok('默认按风险排序，第一行是 legacy-parser', firstRow === 'legacy-parser');
+ok('默认按风险排序，第一行是高风险依赖 internal-utils', firstRow === 'internal-utils');
 
 // —— 2. 筛选与搜索 ——
 console.log('2. 筛选与搜索');
@@ -63,8 +63,11 @@ await inputs[1].fill('^1.2.3');
 await inputs[2].fill('MIT AND');
 await page.click('.modal .primary.full');
 const errTexts = await page.$$eval('.modal .field.invalid em', (els) => els.map((e) => e.textContent).join('|'));
-ok('非法名称/范围版本/残缺表达式均被拦截', errTexts.includes('名称') && errTextssIncludes(errTexts, '范围') && errTexts.includes('表达式'));
-function errTextsIncludes(s, sub) { return s.includes(sub); }
+ok('非法名称/范围版本/残缺表达式均被拦截', errTexts.includes('名称') && errTexts.includes('范围') && errTexts.includes('表达式'));
+await inputs[0].fill('react');
+await page.waitForTimeout(100);
+const dupAddErr = await page.$eval('.modal .field.invalid em', (e) => e.textContent).catch(() => '');
+ok('新增重名被唯一规则拦截', dupAddErr.includes('已存在同名依赖'));
 await inputs[0].fill('date-fns');
 await inputs[1].fill('3.6.0');
 await inputs[2].fill('MIT');
@@ -83,10 +86,24 @@ await page.fill('.detail input[placeholder="指派处理人"]', '王芳');
 await page.fill('.detail input[placeholder*="nearley"]', '无需替换');
 await page.click('.detail-actions .primary');
 await page.waitForTimeout(200);
-const ownerCell = await page.$eval('.table .tr:not(.th):has-text("date-fns") .muted:last-of-type', (e) => e.textContent).catch(() => null);
+const ownerCell = await page
+  .$eval('.table .tr:not(.th):has-text("date-fns")', (row) => row.querySelectorAll('.muted')[1]?.textContent ?? null)
+  .catch(() => null);
 ok('保存后负责人写入列表', ownerCell === '王芳');
 const reviewBadge = await page.$eval('.table .tr:not(.th):has-text("date-fns") .badge.review-approved', (e) => e.textContent).catch(() => null);
 ok('列表状态变为已批准', reviewBadge === '已批准');
+
+// —— 4b. 编辑重名拦截 ——
+console.log('4b. 编辑重名拦截');
+const nameInput = (await page.$$('.detail input'))[0];
+await nameInput.fill('react');
+await page.waitForTimeout(150);
+const dupEditErr = await page.$eval('.detail .field.invalid em', (e) => e.textContent).catch(() => '');
+ok('编辑为重名时提示唯一性错误', dupEditErr.includes('已存在同名依赖'));
+ok('重名时保存按钮被禁用', (await page.$eval('.detail-actions .primary', (b) => b.disabled)) === true);
+await nameInput.fill('date-fns');
+await page.waitForTimeout(150);
+ok('改回唯一名称后错误消失', (await page.$('.detail .field.invalid')) === null);
 
 // —— 5. 批量导入：错误行/重复行/有效行 ——
 console.log('5. 批量导入');

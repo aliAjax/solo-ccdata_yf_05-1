@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { LICENSE_DB } from '../lib/licenses';
 import { evaluateLicense } from '../lib/risk';
 import { parseSpdx } from '../lib/spdx';
-import { validateName, validateVersion } from '../lib/validate';
+import { validateName, validateNameUnique, validateVersion } from '../lib/validate';
 import type { Settings } from '../lib/types';
 import { CATEGORY_LABEL } from '../lib/types';
 import { useEscape } from '../hooks/useEscape';
@@ -29,7 +29,7 @@ export function AddDepModal({ settings, existingNames, onAdd, onClose }: AddDepM
   useEscape(onClose);
 
   const errors = useMemo(() => {
-    const nameErr = validateName(name) ?? (existingNames.has(name.trim().toLowerCase()) ? '同名依赖已存在' : null);
+    const nameErr = validateName(name) ?? validateNameUnique(name, existingNames);
     return {
       name: nameErr,
       version: validateVersion(version),

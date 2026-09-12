@@ -1,1 +1,27 @@
-{"name":"ccdata-yf-05-license-lens","private":true,"version":"1.0.0","type":"module","scripts":{"dev":"vite","build":"tsc -b && vite build","preview":"vite preview"},"dependencies":{"@vitejs/plugin-react":"latest","lucide-react":"latest","react":"latest","react-dom":"latest","typescript":"latest","vite":"latest"},"devDependencies":{"@types/node":"^22.20.2","@types/react":"latest","@types/react-dom":"latest","playwright":"^1.63.0"}}
+{
+  "name": "ccdata-yf-05-license-lens",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test:logic": "rolldown tests/logic.test.ts --format cjs --platform node --external node:test,node:assert --file node_modules/.tmp/logic.test.cjs && node --test node_modules/.tmp/logic.test.cjs",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "playwright": "^1.63.0"
+  }
+}

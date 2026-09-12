@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { LICENSE_DB } from '../lib/licenses';
 import { evaluateLicense } from '../lib/risk';
 import { parseSpdx } from '../lib/spdx';
-import { validateName, validateVersion } from '../lib/validate';
+import { validateName, validateNameUnique, validateVersion } from '../lib/validate';
 import type { Dep, ReviewStatus, Settings } from '../lib/types';
 import { CATEGORY_LABEL, REVIEW_LABEL } from '../lib/types';
 import type { EvaluatedDep } from '../lib/exporter';
@@ -22,6 +22,7 @@ export interface DepPatch {
 interface DetailPanelProps {
   item: EvaluatedDep;
   settings: Settings;
+  existingNames: Set<string>;
   onSave: (id: string, patch: DepPatch) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -29,7 +30,7 @@ interface DetailPanelProps {
 
 const REVIEW_ORDER: ReviewStatus[] = ['pending', 'approved', 'exempted', 'replaced'];
 
-export function DetailPanel({ item, settings, onSave, onDelete, onClose }: DetailPanelProps) {
+export function DetailPanel({ item, settings, existingNames, onSave, onDelete, onClose }: DetailPanelProps) {
   const dep = item.dep;
   const [name, setName] = useState(dep.name);
   const [version, setVersion] = useState(dep.version);
@@ -41,11 +42,11 @@ export function DetailPanel({ item, settings, onSave, onDelete, onClose }: Detai
 
   const errors = useMemo(
     () => ({
-      name: validateName(name),
+      name: validateName(name) ?? validateNameUnique(name, existingNames, dep.name),
       version: validateVersion(version),
       license: parseSpdx(license).ok ? null : parseSpdx(license).error ?? '许可证表达式无效',
     }),
-    [name, version, license],
+    [name, version, license, existingNames, dep.name],
   );
   const hasError = Boolean(errors.name || errors.version || errors.license);
 

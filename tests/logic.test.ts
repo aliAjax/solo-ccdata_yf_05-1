@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { validateName, validateVersion, normalizeVersion } from '../src/lib/validate';
+import { validateName, validateNameUnique, validateVersion, normalizeVersion } from '../src/lib/validate';
 import { parseSpdx, categoryOf } from '../src/lib/spdx';
 import { evaluateLicense } from '../src/lib/risk';
 import { parseImport, importSummary } from '../src/lib/importer';
@@ -46,6 +46,21 @@ test('版本：导入时范围前缀可规范化', () => {
   assert.deepEqual(normalizeVersion('3.1.4'), { version: '3.1.4', changed: false });
   assert.equal(normalizeVersion('*'), null);
   assert.equal(normalizeVersion('latest'), null);
+});
+
+// ———— 名称唯一规则（新增/编辑/导入共用） ————
+test('名称唯一：重名拦截、编辑排除自身、大小写不敏感', () => {
+  const existing = new Set(['react', 'lodash']);
+  // 新增：重名（含大小写变体）被拦截
+  assert.ok(validateNameUnique('react', existing)?.includes('已存在同名依赖'));
+  assert.ok(validateNameUnique('React', existing)?.includes('已存在同名依赖'));
+  // 编辑：与自身原名相同（忽略大小写）放行
+  assert.equal(validateNameUnique('React', existing, 'react'), null);
+  // 编辑：改成其他已有名称仍被拦截
+  assert.ok(validateNameUnique('lodash', existing, 'react'));
+  // 唯一名称与空值放行（空值由格式校验负责）
+  assert.equal(validateNameUnique('axios', existing), null);
+  assert.equal(validateNameUnique('', existing), null);
 });
 
 // ———— SPDX 表达式 ————
@@ -170,6 +185,11 @@ test('导入：与现有重名及文件内重复被跳过', () => {
   assert.equal(r.rows[1].duplicate, true, '文件内重复');
   assert.equal(r.rows[2].duplicate, true, '与现有重名');
   assert.deepEqual(importSummary(r.rows), { valid: 1, skipped: 2, failed: 0 });
+});
+test('导入：重名行使用统一的唯一性提示', () => {
+  const r = parseImport('react,18.3.1,MIT', new Set(['react']));
+  assert.equal(r.rows[0].duplicate, true);
+  assert.ok(r.rows[0].warnings.some((w) => w.includes('已存在同名依赖「react」')));
 });
 test('导入：未知许可证降级为警告而非错误', () => {
   const r = parseImport('pkg,1.0.0,Weird-License-9', new Set());

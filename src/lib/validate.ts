@@ -13,6 +13,18 @@ export function validateName(name: string): string | null {
   return null;
 }
 
+/**
+ * 名称唯一性规则（新增、编辑、导入共用，大小写不敏感）。
+ * selfName 用于编辑场景：与自身原名相同（忽略大小写）时不视为冲突。
+ */
+export function validateNameUnique(name: string, existingNames: Set<string>, selfName?: string): string | null {
+  const key = name.trim().toLowerCase();
+  if (!key) return null;
+  if (selfName && key === selfName.trim().toLowerCase()) return null;
+  if (existingNames.has(key)) return `已存在同名依赖「${name.trim()}」`;
+  return null;
+}
+
 const SEMVER_RE = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
 export function validateVersion(version: string): string | null {

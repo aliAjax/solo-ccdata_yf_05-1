@@ -12,6 +12,7 @@ import { buildMarkdown, downloadFile, type EvaluatedDep } from './lib/exporter';
 import { evaluateLicense } from './lib/risk';
 import { sampleDeps } from './lib/sample';
 import { loadState, saveState } from './lib/storage';
+import { validateNameUnique } from './lib/validate';
 import type { Dep, ReviewStatus, RiskLevel, Settings, Workspace } from './lib/types';
 import { DEFAULT_SETTINGS, newId, REVIEW_LABEL } from './lib/types';
 import { useHistory } from './hooks/useHistory';
@@ -165,6 +166,11 @@ export default function App() {
 
   // —— 数据操作（全部进入撤销历史） ——
   const addDep = (f: NewDepFields) => {
+    const dupError = validateNameUnique(f.name, existingNames);
+    if (dupError) {
+      pushToast(`${dupError}，未保存`, 'warn');
+      return;
+    }
     const dep: Dep = {
       id: newId(),
       ...f,
@@ -182,6 +188,12 @@ export default function App() {
   };
 
   const saveDep = (id: string, patch: DepPatch) => {
+    const self = present.deps.find((d) => d.id === id);
+    const dupError = validateNameUnique(patch.name, existingNames, self?.name);
+    if (dupError) {
+      pushToast(`${dupError}，未保存`, 'warn');
+      return;
+    }
     commit((ws) => ({ ...ws, deps: ws.deps.map((d) => (d.id === id ? { ...d, ...patch } : d)) }));
     pushToast('已保存更改');
   };
@@ -448,6 +460,7 @@ export default function App() {
               key={active.dep.id}
               item={active}
               settings={present.settings}
+              existingNames={existingNames}
               onSave={saveDep}
               onDelete={deleteDep}
               onClose={() => setActiveId(null)}

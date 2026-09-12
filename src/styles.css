@@ -22,6 +22,9 @@ body {
 button {
   font: inherit;
 }
+[hidden] {
+  display: none !important;
+}
 
 .shell {
   display: flex;
@@ -946,6 +949,9 @@ button:disabled {
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
+}
+.import-tools .link {
+  white-space: nowrap;
 }
 .import-input {
   width: 100%;
